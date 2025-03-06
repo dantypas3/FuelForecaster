@@ -7,7 +7,7 @@ import cudf
 import time
 import joblib
 
-def train_model(parquet_path = 'data/full_df.parquet', data_proc="no"):
+def train_model(parquet_path = '../data/parquets//full_df.parquet', data_proc="no"):
     if data_proc == "yes":
         print("Processing Data")
         full_df = data_processing.process_data()
@@ -93,4 +93,4 @@ def train_model(parquet_path = 'data/full_df.parquet', data_proc="no"):
 
     #Store the trained model
     print("Storing model in models/xgbr_trained.pkl")
-    joblib.dump(xgb_model, 'models/xgbr_trained.pkl')
+    joblib.dump(xgb_model, '../models/xgbr_trained.pkl')

@@ -6,11 +6,11 @@ from sklearn.preprocessing import LabelEncoder
 
 def process_data():
 
-    prices_list = glob.glob('data/prices/*/*')
+    prices_list = glob.glob('../data/prices/tankstellen/*/*')
     data_frames = []
 
     print("Processing Oil Prices")
-    oil_df = pd.read_csv('data/oil.csv', sep=',')
+    oil_df = pd.read_csv('../data/prices/oil/oil.csv', sep=',')
     oil_df['Day'] = pd.to_datetime(oil_df['Day'], yearfirst=True)
     oil_df['month'] = oil_df['Day'].dt.month
     oil_df['day'] = oil_df['Day'].dt.day
@@ -19,8 +19,8 @@ def process_data():
     oil_df.rename(columns={"Europe Brent Spot Price FOB  Dollars per Barrel": "oil_price"}, inplace=True)
     oil_df.drop(columns=['Day'], inplace=True)
     oil_df['oil_7d_avg'] = oil_df['oil_price'].rolling(7, min_periods=1).mean()
-    print("Storing oil df in data/oil_df.parquet")
-    oil_df.to_parquet('data/oil_df.parquet', index=False)
+    print("Storing oil df in data/parquets/oil_df.parquet")
+    oil_df.to_parquet('../data/parquets/oil_df.parquet', index=False)
 
 
     for price_file in prices_list:
@@ -86,8 +86,8 @@ def process_data():
     encoder = LabelEncoder()
     full_df['station_id_encoded'] = encoder.fit_transform(full_df['station_uuid'])
 
-    print("Storing concatenated dfs in data/conc_dfs.parquet")
-    full_df.to_parquet('data/conc_dfs.parquet', index=False)
+    print("Storing concatenated dfs in data/parquets//conc_dfs.parquet")
+    full_df.to_parquet('../data/parquets//conc_dfs.parquet', index=False)
 
     print("full_df columns:", full_df.columns)
     print("full_df columns:", oil_df.columns)
@@ -116,6 +116,6 @@ def process_data():
     full_df = full_df[(full_df['e10'] >= 0.5) & (full_df['e10'] <= 3)]
     print(f"Months & Years in df: {full_df['month'].unique()}, {full_df['year'].unique()}")
 
-    print("Storing Dataframe in data/full_df.parquet")
-    full_df.to_parquet('data/full_df.parquet', index=False)
+    print("Storing Dataframe in data/parquets//full_df.parquet")
+    full_df.to_parquet('../data/parquets//full_df.parquet', index=False)
     return full_df
