@@ -43,7 +43,7 @@ def train_model(parquet_path = '../data/parquets//full_df.parquet', data_proc="n
     X_train, y_train = train_df[feature_cols], train_df[target_cols]
     X_test, y_test = test_df[feature_cols], test_df[target_cols]
 
-    batch_size = 2000000
+    batch_size = 2000000            #Adapt batch_size according to available Hardware
     num_batches = len(X_train) // batch_size + 1
     print(f"Number of batches: {num_batches}")
 
@@ -74,7 +74,7 @@ def train_model(parquet_path = '../data/parquets//full_df.parquet', data_proc="n
         start_model = time.time()
         batch_df = train_df.iloc[i * batch_size: (i + 1) * batch_size]
         X_batch = batch_df[feature_cols]
-        y_batch = batch_df[target_cols]  # ✅ Correct way to slice y_train
+        y_batch = batch_df[target_cols]
 
         if first_batch:
             xgb_model.fit(X_batch, y_batch, verbose=True)
