@@ -4,24 +4,73 @@ import glob
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
 
+class DataProcessing:
+
+    def __init__(self, csv_oil_path = None, csv_stations_path = None):
+        if csv_oil_path:
+            self.oil_df = pd.read_csv(csv_oil_path, sep=",")
+        else:
+            print("No oil dataframe provided")
+        if csv_stations_path:
+            stations_daily_path = glob.glob(csv_stations_path)
+            stations = []
+            for day_csv in stations_daily_path:
+                day = pd.read_csv(day_csv, sep=",")
+                stations.append(day)
+            self.stations_df = pd.concat(stations)
+            self.stations = pd.read_csv(csv_stations_path, sep=",")
+        else :
+            print("No station dataframe provided")
+
+    oil_df = pd.DataFrame()
+    stations_df = pd.DataFrame()
+
+class OilProcessing(DataProcessing):
+
+    def __init__(self, csv_oil_path = None):
+        super().__init__(csv_oil_path=csv_oil_path)
+
+    def set_datetime(self):
+        if self.oil_df is None:
+            raise Exception("No oil dataframe provided")
+        self.oil_df['month'] = self.oil_df['Day'].dt.month
+        self.oil_df['day'] = self.oil_df['Day'].dt.day
+        self.oil_df['year'] = self.oil_df['Day'].dt.year
+
+    def set_columns(self):
+        if self.oil_df is None:
+            raise Exception("No oil dataframe provided")
+        if not self.oil_df.columns.str.contains('Europe Brent Spot Price FOB  Dollars per Barrel').any():
+            raise Exception("Check column name: 'Europe Brent Spot Price FOB  Dollars per Barrel' not found")
+        self.oil_df.rename(columns={"Europe Brent Spot Price FOB  Dollars per Barrel": "oil_price"}, inplace=True)
+        self.oil_df['Day'] = pd.to_datetime(self.oil_df['Day'], yearfirst=True)
+
+    def df_cleaning(self):
+        self.oil_df.drop(columns=['Day'], inplace=True)
+
+    def add_7d_mean(self):
+        self.oil_df['oil_7d_mean'] = self.oil_df['oil_price'].rolling(7, min_periods=1).mean()
+
+    def save_parquet (self):
+        self.oil_df.to_parquet('../data/parquets/oil_df.parquet', index=False)
+
+    def auto_process(self):
+        print("Setting datetimg")
+        self.set_oil_datetime()
+        print("Cleaning the dataframe")
+        self.oil_df_cleaning()
+        print("Setting column names")
+        self.set_oil_column_names()
+        print("Saving oil parquet")
+        self.save_oil_parquet()
+
+
+
+
 def process_data():
 
-    prices_list = glob.glob('../data/prices/tankstellen/*/*')
+    prices_list = glob.glob('../data/prices/stations/*/*')
     data_frames = []
-
-    print("Processing Oil Prices")
-    oil_df = pd.read_csv('../data/prices/oil/oil.csv', sep=',')
-    oil_df['Day'] = pd.to_datetime(oil_df['Day'], yearfirst=True)
-    oil_df['month'] = oil_df['Day'].dt.month
-    oil_df['day'] = oil_df['Day'].dt.day
-    oil_df['year'] = oil_df['Day'].dt.year
- #  oil_df = oil_df[oil_df['year'] == 2025]
-    oil_df.rename(columns={"Europe Brent Spot Price FOB  Dollars per Barrel": "oil_price"}, inplace=True)
-    oil_df.drop(columns=['Day'], inplace=True)
-    oil_df['oil_7d_avg'] = oil_df['oil_price'].rolling(7, min_periods=1).mean()
-    print("Storing oil df in data/parquets/oil_df.parquet")
-    oil_df.to_parquet('../data/parquets/oil_df.parquet', index=False)
-
 
     for price_file in prices_list:
 
