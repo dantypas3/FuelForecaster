@@ -2,9 +2,10 @@
 import pandas as pd
 import glob
 import numpy as np
+import os
 from sklearn.preprocessing import LabelEncoder
 
-class DataProcessing:
+class BaseDataProcessing:
 
     def __init__(self, csv_oil_path = None, csv_stations_path = None):
         if csv_oil_path:
@@ -13,63 +14,58 @@ class DataProcessing:
             print("No oil dataframe provided")
         if csv_stations_path:
             stations_daily_path = glob.glob(csv_stations_path)
-            stations = []
-            for day_csv in stations_daily_path:
-                day = pd.read_csv(day_csv, sep=",")
-                stations.append(day)
+            stations = [pd.read_csv(file, sep=",") for file in stations_daily_path]
             self.stations_df = pd.concat(stations)
-            self.stations = pd.read_csv(csv_stations_path, sep=",")
         else :
             print("No station dataframe provided")
 
     oil_df = pd.DataFrame()
     stations_df = pd.DataFrame()
 
-class OilProcessing(DataProcessing):
+class OilProcessing(BaseDataProcessing):
 
-    def __init__(self, csv_oil_path = None):
+    def __init__(self, csv_oil_path):
+        if not csv_oil_path:
+            raise TypeError("Path for oil.csv was not provided")
+        if os.path.isdir(csv_oil_path):
+            raise FileNotFoundError(f"No csv file found in given path {csv_oil_path}")
+        if not os.path.isfile(csv_oil_path):
+            raise FileNotFoundError(f"Directory {csv_oil_path} not found.")
         super().__init__(csv_oil_path=csv_oil_path)
 
-    def set_datetime(self):
-        if self.oil_df is None:
-            raise Exception("No oil dataframe provided")
-        self.oil_df['month'] = self.oil_df['Day'].dt.month
-        self.oil_df['day'] = self.oil_df['Day'].dt.day
-        self.oil_df['year'] = self.oil_df['Day'].dt.year
-
     def set_columns(self):
-        if self.oil_df is None:
-            raise Exception("No oil dataframe provided")
         if not self.oil_df.columns.str.contains('Europe Brent Spot Price FOB  Dollars per Barrel').any():
             raise Exception("Check column name: 'Europe Brent Spot Price FOB  Dollars per Barrel' not found")
         self.oil_df.rename(columns={"Europe Brent Spot Price FOB  Dollars per Barrel": "oil_price"}, inplace=True)
         self.oil_df['Day'] = pd.to_datetime(self.oil_df['Day'], yearfirst=True)
+        self.oil_df['month'] = self.oil_df['Day'].dt.month
+        self.oil_df['day'] = self.oil_df['Day'].dt.day
+        self.oil_df['year'] = self.oil_df['Day'].dt.year
 
     def df_cleaning(self):
         self.oil_df.drop(columns=['Day'], inplace=True)
 
+    def add_3d_mean(self):
+        self.oil_df['oil_7d_mean'] = self.oil_df['oil_price'].rolling(3, min_periods=1).mean()
+
     def add_7d_mean(self):
         self.oil_df['oil_7d_mean'] = self.oil_df['oil_price'].rolling(7, min_periods=1).mean()
+        #TODO Fill empty days with average
 
-    def save_parquet (self):
-        self.oil_df.to_parquet('../data/parquets/oil_df.parquet', index=False)
+    def add_14d_mean(self):
+        self.oil_df['oil_14d_mean'] = self.oil_df['oil_price'].rolling(14, min_periods=1).mean()
 
-    def auto_process(self):
-        print("Setting datetimg")
-        self.set_oil_datetime()
-        print("Cleaning the dataframe")
-        self.oil_df_cleaning()
-        print("Setting column names")
-        self.set_oil_column_names()
-        print("Saving oil parquet")
-        self.save_oil_parquet()
+    def save_parquet (self, parquet_name='../data/parquets/oil_df.parquet'):
+        self.oil_df.to_parquet(parquet_name, index=False)
 
-
+class StationProcessing(BaseDataProcessing):
+    pass
+    #TODO all variables 32bit
+    #TODO StationsProcessing
 
 
 def process_data():
-
-    prices_list = glob.glob('../data/prices/stations/*/*')
+    prices_list = glob.glob('data/prices/*/*')
     data_frames = []
 
     for price_file in prices_list:
@@ -139,7 +135,6 @@ def process_data():
     full_df.to_parquet('../data/parquets//conc_dfs.parquet', index=False)
 
     print("full_df columns:", full_df.columns)
-    print("full_df columns:", oil_df.columns)
 
 
 
