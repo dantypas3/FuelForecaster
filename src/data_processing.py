@@ -5,60 +5,44 @@ import numpy as np
 import os
 from sklearn.preprocessing import LabelEncoder
 
-class BaseDataProcessing:
-
-    def __init__(self, csv_oil_path = None, csv_stations_path = None):
-        if csv_oil_path:
-            self.oil_df = pd.read_csv(csv_oil_path, sep=",")
-        else:
-            print("No oil dataframe provided")
-        if csv_stations_path:
-            stations_daily_path = glob.glob(csv_stations_path)
-            stations = [pd.read_csv(file, sep=",") for file in stations_daily_path]
-            self.stations_df = pd.concat(stations)
-        else :
-            print("No station dataframe provided")
-
-    oil_df = pd.DataFrame()
-    stations_df = pd.DataFrame()
-
-class OilProcessing(BaseDataProcessing):
+class OilProcessing:
 
     def __init__(self, csv_oil_path):
         if not csv_oil_path:
-            raise TypeError("Path for oil.csv was not provided")
-        if os.path.isdir(csv_oil_path):
-            raise FileNotFoundError(f"No csv file found in given path {csv_oil_path}")
-        if not os.path.isfile(csv_oil_path):
-            raise FileNotFoundError(f"Directory {csv_oil_path} not found.")
-        super().__init__(csv_oil_path=csv_oil_path)
+            raise ValueError("Path for oil.csv was not provided")
+        if not os.path.exists(csv_oil_path):
+            raise FileNotFoundError(f"File not found: {csv_oil_path}")
+
+        self.oil_df = pd.read_csv(csv_oil_path, sep=',')
+        self.set_columns()
+        self.df_cleaning()
+        self.add_rolling_means()
 
     def set_columns(self):
+        print("Actual columns in DataFrame:", self.oil_df.columns)  # Debugging step
         if not self.oil_df.columns.str.contains('Europe Brent Spot Price FOB  Dollars per Barrel').any():
-            raise Exception("Check column name: 'Europe Brent Spot Price FOB  Dollars per Barrel' not found")
+            raise Exception("Europe Brent Spot Price FOB  Dollars per Barrel' not found")
         self.oil_df.rename(columns={"Europe Brent Spot Price FOB  Dollars per Barrel": "oil_price"}, inplace=True)
         self.oil_df['Day'] = pd.to_datetime(self.oil_df['Day'], yearfirst=True)
         self.oil_df['month'] = self.oil_df['Day'].dt.month
         self.oil_df['day'] = self.oil_df['Day'].dt.day
         self.oil_df['year'] = self.oil_df['Day'].dt.year
+        print("Actual columns in DataFrame:", self.oil_df.columns)  # Debugging step
+
 
     def df_cleaning(self):
         self.oil_df.drop(columns=['Day'], inplace=True)
 
-    def add_3d_mean(self):
+    def add_rolling_means(self):
         self.oil_df['oil_7d_mean'] = self.oil_df['oil_price'].rolling(3, min_periods=1).mean()
-
-    def add_7d_mean(self):
         self.oil_df['oil_7d_mean'] = self.oil_df['oil_price'].rolling(7, min_periods=1).mean()
-        #TODO Fill empty days with average
-
-    def add_14d_mean(self):
         self.oil_df['oil_14d_mean'] = self.oil_df['oil_price'].rolling(14, min_periods=1).mean()
+
 
     def save_parquet (self, parquet_name='../data/parquets/oil_df.parquet'):
         self.oil_df.to_parquet(parquet_name, index=False)
 
-class StationProcessing(BaseDataProcessing):
+class StationProcessing:
     pass
     #TODO all variables 32bit
     #TODO StationsProcessing

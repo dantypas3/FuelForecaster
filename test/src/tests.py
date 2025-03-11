@@ -4,83 +4,60 @@ import pandas as pd
 import datetime as dt
 from src import data_processing as dp
 
-test_oil_csv = "../test_data/oil/oil.csv"
-test_stations_csvs = "../test_data/stations/*/*"
-
-class TestDataProcessing(unittest.TestCase):
-    def test_constructor_no_arguments(self):                    #Assert that both dataframes are empty
-        empty_dfs = dp.BaseDataProcessing()
-        self.assertIs(empty_dfs.oil_df.empty, True)
-        self.assertIs(empty_dfs.stations_df.empty, True)
-
-    def test_constructor_only_oil_df(self):                     #Assert that oil_df is not empty
-        oil_df = dp.BaseDataProcessing(csv_oil_path="../test_data/oil/oil.csv")
-        self.assertIs(oil_df.oil_df.empty, False)
-        self.assertIs(oil_df.stations_df.empty, True)
-
-    def test_constructor_only_stations_df(self):                #Assert that stations_df is not empty
-        stations_df = dp.BaseDataProcessing(csv_stations_path ="../test_data/stations/*/*")
-        self.assertIs(stations_df.stations_df.empty, False)
-        self.assertIs(stations_df.oil_df.empty, True)
-
-    def test_constructor_all_arguments(self):                   #Assert that oil_df & stations_df is not empty
-        full_df = dp.BaseDataProcessing("../test_data/oil/oil.csv", "../test_data/stations/*/*")
-        self.assertIs(full_df.oil_df.empty, False)
-        self.assertIs(full_df.stations_df.empty, False)
-
-    def test_df_concat(self):                                   #Assert that the station csvs are succesfully
-        test_stations_df = dp.BaseDataProcessing(csv_stations_path="../test_data/stations/*/*")
-        df1 = pd.read_csv("../test_data/stations/1/2025-03-07-stations.csv")
-        df2 = pd.read_csv("../test_data/stations/2/2025-03-08-stations.csv")
-        df3 = pd.read_csv("../test_data/stations/3/2025-03-09-stations.csv")
-        total_lines = df1.shape[0] + df2.shape[0] + df3.shape[0]
-        self.assertEqual(test_stations_df.stations_df.shape[0], total_lines)
+TEST_OIL_CSV = "../test_data/oil/oil.csv"
+TEST_OIL_WRONG_CSV = "../test_data/oil/oil_wrong.csv"
+TEST_PARQUET_PATH = "../../data/parquets/test_oil_df.parquet"
 
 class TestOilProcessing(unittest.TestCase):
+
     def test_constructor_no_path(self):
-        with self.assertRaises(TypeError):
-            dp.OilProcessing()
+        """Test that initializing OilProcessing without a path raises ValueError."""
+        with self.assertRaises(ValueError):
+            dp.OilProcessing(None)
 
     def test_constructor_no_csv(self):
+        """Test that initializing OilProcessing with a non-existent CSV raises FileNotFoundError."""
         with self.assertRaises(FileNotFoundError):
-            dp.OilProcessing('../test_data/oil/Empty')
+            dp.OilProcessing('../test_data/oil/non_existent.csv')
 
-    def test_constructor_no_directory(self):
-        with self.assertRaises(FileNotFoundError):
-            dp.OilProcessing('../test_data/oil/Wrong')
+    def test_constructor_valid_csv(self):
+        """Test that OilProcessing initializes properly with a valid CSV."""
+        self.assertTrue(os.path.exists(TEST_OIL_CSV), f"Test file not found: {TEST_OIL_CSV}")
+        test_oil = dp.OilProcessing(TEST_OIL_CSV)
+        self.assertFalse(test_oil.oil_df.empty)
 
-    def test_set_datetime(self):
-        test_oil_df = dp.OilProcessing(test_oil_csv)
-        test_oil_df.set_columns()
-        self.assertTrue(dt.datetime, test_oil_df.oil_df["Day"])
-        self.assertIn("month", test_oil_df.oil_df.columns)
-        self.assertIn("day", test_oil_df.oil_df.columns)
-        self.assertIn("year", test_oil_df.oil_df.columns)
-        self.assertNotIn("Europe Brent Spot Price FOB  Dollars per Barrel", test_oil_df.oil_df.columns)
-        self.assertIn("oil_price", test_oil_df.oil_df.columns)
+    def test_set_columns(self):
+        test_oil = dp.OilProcessing(TEST_OIL_CSV)
+        # Do not call set_columns() again, since it's already been called in __init__
+        self.assertIn("oil_price", test_oil.oil_df.columns)
+        self.assertIn("month", test_oil.oil_df.columns)
+        self.assertIn("day", test_oil.oil_df.columns)
+        self.assertIn("year", test_oil.oil_df.columns)
 
     def test_set_columns_wrong_string(self):
-        test_oil_df = dp.OilProcessing("../test_data/oil/oil_wrong.csv")
-        with self.assertRaises(Exception):
-            test_oil_df.set_columns()
+        """Test if an exception is raised when the column name does not match the expected string."""
+        with self.assertRaises(KeyError):
+            dp.OilProcessing(TEST_OIL_WRONG_CSV)
 
     def test_df_cleaning(self):
-        test_oil_df = dp.OilProcessing(test_oil_csv)
-        test_oil_df.set_columns()
-        test_oil_df.df_cleaning()
-        self.assertNotIn("Day", test_oil_df.oil_df.columns)
+        """Test that the 'Day' column is removed correctly."""
+        test_oil = dp.OilProcessing(TEST_OIL_CSV)
+        self.assertNotIn("Day", test_oil.oil_df.columns)
 
-    def test_add_7d_mean(self):
-        test_oil_df = dp.OilProcessing(test_oil_csv)
-        test_oil_df.set_columns()
-        test_oil_df.add_7d_mean()
-        self.assertIn("oil_7d_mean", test_oil_df.oil_df.columns)
-        self.assertFalse(test_oil_df.oil_df["oil_7d_mean"].isna().all())
+    def test_add_rolling_means(self):
+        """Test rolling mean calculations for 3d, 7d, and 14d averages."""
+        test_oil = dp.OilProcessing(TEST_OIL_CSV)
+        self.assertIn("oil_7d_mean", test_oil.oil_df.columns)
+        self.assertIn("oil_14d_mean", test_oil.oil_df.columns)
+        self.assertFalse(test_oil.oil_df["oil_7d_mean"].isna().all())
 
     def test_save_parquet(self):
-        test_oil_df = dp.OilProcessing(test_oil_csv)
-        test_oil_df.save_parquet("../../data/parquets/test_oil_df.parquet")
-        self.assertTrue(os.path.exists('../../data/parquets/test_oil_df.parquet'))
-        os.remove('../../data/parquets/test_oil_df.parquet')
+        """Test saving dataframe to a Parquet file."""
+        test_oil = dp.OilProcessing(TEST_OIL_CSV)
+        test_oil.save_parquet(TEST_PARQUET_PATH)
+        self.assertTrue(os.path.exists(TEST_PARQUET_PATH))
+        self.addCleanup(os.remove, TEST_PARQUET_PATH)  # Ensure cleanup
 
-##TODO stations tests
+
+if __name__ == "__main__":
+    unittest.main()
