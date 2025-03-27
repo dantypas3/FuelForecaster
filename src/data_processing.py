@@ -51,7 +51,7 @@ class StationProcessing:
         if not os.path.exists(directory_prices_path):
             raise FileNotFoundError(f"Price files were not found in: {directory_prices_path}")
 
-        prices_list = directory_prices_path + "/*/*"
+        prices_list = glob.glob(os.path.join(directory_prices_path, '*', '*'))
         data_frames = []
 
         if gpu is False:

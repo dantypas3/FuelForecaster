@@ -3,7 +3,7 @@ import data_processing
 import pandas as pd
 from xgboost import XGBRegressor
 from sklearn.metrics import mean_squared_error
-import cudf
+#import cudf
 import time
 import joblib
 
