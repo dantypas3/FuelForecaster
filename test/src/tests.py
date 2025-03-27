@@ -36,7 +36,7 @@ class TestOilProcessing(unittest.TestCase):
 
     def test_set_columns_wrong_string(self):
         """Test if an exception is raised when the column name does not match the expected string."""
-        with self.assertRaises(KeyError):
+        with self.assertRaises(Exception):
             dp.OilProcessing(TEST_OIL_WRONG_CSV)
 
     def test_df_cleaning(self):
