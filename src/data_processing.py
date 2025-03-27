@@ -42,106 +42,87 @@ class OilProcessing:
     def save_parquet (self, parquet_name='../data/parquets/oil_df.parquet'):
         self.oil_df.to_parquet(parquet_name, index=False)
 
+    oil_df = None
+
 class StationProcessing:
-    pass
-    #TODO all variables 32bit
-    #TODO StationsProcessing
+    def __init__(self, directory_prices_path, gpu=False):
+        if not directory_prices_path:
+            raise ValueError("Path for station.csv was not provided")
+        if not os.path.exists(directory_prices_path):
+            raise FileNotFoundError(f"Price files were not found in: {directory_prices_path}")
+
+        prices_list = directory_prices_path + "/*/*"
+        data_frames = []
+
+        if gpu is False:
+            for price_file in prices_list:
+                print(f"Processing {price_file}")
+                df = pd.read_csv(price_file, sep=',')
+                data_frames.append(df)
+                self.full_df = pd.concat(data_frames)
+        self.set_datetime()
+        self.set_datetime_sin()
+        #self.set_datetime_cos()
+        self.df_cleaning()
+        self.save_parquet()
+
+    def set_datetime(self):
+        self.full_df['date'] = pd.to_datetime(['date'], yearfirst=True)
+        self.full_df['year'] = self.full_df['date'].dt.year
+        self.full_df['month'] = self.full_df['date'].dt.month
+        self.full_df['day'] = self.full_df['date'].dt.day
+        self.full_df['weekday'] = self.full_df['date'].dt.weekday
+        self.full_df['hour'] = self.full_df['date'].dt.hour
+
+    def df_cleaning(self):
+        encoder = LabelEncoder()
+        self.full_df['station_id_encoded'] = encoder.fit_transform(self.full_df['station_uuid'])
+        if 'date' in self.full_df.columns:
+            self.full_df.drop('date', axis=1, inplace=True)
+        self.full_df = self.full_df.dropna()
+        self.full_df = self.full_df[(self.full_df['diesel'] >= 0.5) & (self.full_df['diesel'] <= 3)]
+        self.full_df = self.full_df[(self.full_df['e5'] >= 0.5) & (self.full_df['e5'] <= 3)]
+        self.full_df = self.full_df[(self.full_df['e10'] >= 0.5) & (self.full_df['e10'] <= 3)]
 
 
-def process_data():
-    prices_list = glob.glob('data/prices/*/*')
-    data_frames = []
+    def set_datetime_sin(self):
+        self.full_df['hour_sin'] = np.sin(2 * np.pi * self.full_df['hour'] / 24)
+        self.full_df['weekday_sin'] = np.sin(2 * np.pi * self.full_df['weekday'] / 7)
 
-    for price_file in prices_list:
+    def set_datetime_cos(self):
+        self.full_df['hour_cos'] = np.cos(2 * np.pi * self.full_df['hour'] / 24)
+        self.full_df['weekday_cos'] = np.cos(2 * np.pi * self.full_df['weekday'] / 7)
 
-        print(f"Processing {price_file}")
-        #Read CSV
-        df = pd.read_csv(price_file)
-        #Convert date column to datetime format
-        df['date'] = pd.to_datetime(df['date'], yearfirst=True)
+    def save_parquet (self):
+        self.full_df.to_parquet('../data/parquets//full_df.parquet', index=False)
 
-        #Add date-related columns
-        df['year'] = df['date'].dt.year
-        df['month'] = df['date'].dt.month
-        df['day'] = df['date'].dt.day
-        df['weekday'] = df['date'].dt.weekday
-        df['hour'] = df['date'].dt.hour
+    #TODO gpu is True
+    #TODO 3,5,7 day avg, volatility, 1,3,7 day lag
+    # df['diesel_7d_avg'] = df['diesel'].rolling(7, min_periods=1).mean()
+    # df['e5_7d_avg'] = df['e5'].rolling(7, min_periods=1).mean()
+    # df['e10_7d_avg'] = df['e10'].rolling(7, min_periods=1).mean()
+    # df['e5_volatility'] = df['e5'].pct_change().rolling(7).std()
+    # df['e5_lag_1'] = df['e5'].shift(1)
+    # df['e5_lag_3'] = df['e5'].shift(3)
+    # df['e5_lag_7'] = df['e5'].shift(7)
 
-        df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24)
-        df['hour_cos'] = np.cos(2 * np.pi * df['hour'] / 24)
+def process_data_csv(oil: OilProcessing, stations: StationProcessing, save = True) -> pd.DataFrame:
+    final_df = stations.full_df.merge(oil, how='left', on=["month", "day", "year"])
+    if save:
+        final_df.to_parquet('../data/parquets//final_df.parquet', index=False)
+    return final_df
 
-        df['weekday_sin'] = np.sin(2 * np.pi * df['weekday'] / 7)
-        df['weekday_cos'] = np.cos(2 * np.pi * df['weekday'] / 7)
-
-        df['month_sin'] = np.sin(2 * np.pi * df['month'] / 12)
-        df['month_cos'] = np.cos(2 * np.pi * df['month'] / 12)
-
-        df['day_sin'] = np.sin(2 * np.pi * df['day'] / 30)
-        df['day_cos'] = np.cos(2 * np.pi * df['day'] / 30)
-
-        df['diesel_7d_avg'] = df['diesel'].rolling(7, min_periods=1).mean()
-        df['e5_7d_avg'] = df['e5'].rolling(7, min_periods=1).mean()
-        df['e10_7d_avg'] = df['e10'].rolling(7, min_periods=1).mean()
-        df['e5_volatility'] = df['e5'].pct_change().rolling(7).std()
-        df['e5_lag_1'] = df['e5'].shift(1)
-        df['e5_lag_3'] = df['e5'].shift(3)
-        df['e5_lag_7'] = df['e5'].shift(7)
-
-
-        #Convert price to 32bit floats
-        df['diesel'] = df['diesel'].astype("float32")
-        df['e5'] = df['e5'].astype("float32")
-        df['e10'] = df['e10'].astype("float32")
-        df['hour_sin'] = df['hour_sin'].astype("float32")
-        df['hour_cos'] = df['hour_cos'].astype("float32")
-        df['weekday_sin'] = df['weekday_sin'].astype("float32")
-        df['weekday_cos'] = df['weekday_cos'].astype("float32")
-        df['day_sin'] = df['day_sin'].astype("float32")
-        df['day_cos'] = df['day_cos'].astype("float32")
-        df['diesel_7d_avg'] = df['diesel_7d_avg'].astype("float32")
-        df['e5_7d_avg'] = df['e5_7d_avg'].astype("float32")
-        df['e10_7d_avg'] = df['e10_7d_avg'].astype("float32")
-
-        #Store df in data_frames list
-        data_frames.append(df)
-
-    #Concatenate all dataframes
-    print("Concatenating data frames...")
-    full_df = pd.concat(data_frames)
-
-    #oil_df = pd.read_parquet('data/oil_df.parquet')
-    #full_df = pd.read_parquet('data/conc_dfs.parquet')
-    #Make station id readable by ML model with encoder
-    encoder = LabelEncoder()
-    full_df['station_id_encoded'] = encoder.fit_transform(full_df['station_uuid'])
-
-    print("Storing concatenated dfs in data/parquets//conc_dfs.parquet")
-    full_df.to_parquet('../data/parquets//conc_dfs.parquet', index=False)
-
-    print("full_df columns:", full_df.columns)
+def process_data_parquet(oil_parquet = '../data/parquets/oil_df.parquet', stations_parquet = '../data/parquets//full_df.parquet',
+                         save = True) -> pd.DataFrame:
+    oil = pd.read.parquet(oil_parquet)
+    stations = pd.read_parquet(stations_parquet)
+    final_df = stations.full_df.merge(oil, how='left', on=["month", "day", "year"])
+    if save:
+        final_df.to_parquet('../data/parquets//final_df.parquet', index=False)
+    return final_df
 
 
 
-    print("Merging Dataframes ...")
-    full_df = full_df.merge(oil_df, on=["month", "day", "year"], how='left')
-
-
-    if full_df['oil_price'].isna().sum() > 0:
-        print(f"NaN oil prices before filling: {full_df['oil_price'].isna().sum()}")
-
-        full_df['oil_price'] = full_df['oil_price'].where(full_df['oil_price'].notna(), full_df['oil_price'].ffill())
-        full_df['oil_price'] = full_df['oil_price'].where(full_df['oil_price'].notna(), full_df['oil_price'].bfill())
-        full_df['oil_price'] = full_df['oil_price'].rolling(7, min_periods=1).mean()
-        print(f"NaN oil prices after filling: {full_df['oil_price'].isna().sum()}")
-
-#Clean dataframe
-    print("Cleaning Dataframe... ")
-    # Free memory by removing date column
-    full_df.drop(columns=['date', 'dieselchange', 'e5change', 'e10change'], inplace=True)
-    full_df = full_df.dropna()
-    full_df = full_df[(full_df['diesel'] >= 0.5) & (full_df['diesel'] <= 3)]
-    full_df = full_df[(full_df['e5'] >= 0.5) & (full_df['e5'] <= 3)]
-    full_df = full_df[(full_df['e10'] >= 0.5) & (full_df['e10'] <= 3)]
     print(f"Months & Years in df: {full_df['month'].unique()}, {full_df['year'].unique()}")
 
     print("Storing Dataframe in data/parquets//full_df.parquet")
