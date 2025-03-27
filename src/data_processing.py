@@ -120,11 +120,3 @@ def process_data_parquet(oil_parquet = '../data/parquets/oil_df.parquet', statio
     if save:
         final_df.to_parquet('../data/parquets//final_df.parquet', index=False)
     return final_df
-
-
-
-    print(f"Months & Years in df: {full_df['month'].unique()}, {full_df['year'].unique()}")
-
-    print("Storing Dataframe in data/parquets//full_df.parquet")
-    full_df.to_parquet('../data/parquets//full_df.parquet', index=False)
-    return full_df
