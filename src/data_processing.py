@@ -3,6 +3,8 @@ import pandas as pd
 import glob
 import numpy as np
 import os
+
+from anyio import sleep_forever
 from sklearn.preprocessing import LabelEncoder
 
 class OilProcessing:
@@ -14,9 +16,6 @@ class OilProcessing:
             raise FileNotFoundError(f"File not found: {csv_oil_path}")
 
         self.oil_df = pd.read_csv(csv_oil_path, sep=',')
-        self.set_columns()
-        self.df_cleaning()
-        self.add_rolling_means()
 
     def set_columns(self):
         print("Actual columns in DataFrame:", self.oil_df.columns)  # Debugging step
@@ -39,12 +38,17 @@ class OilProcessing:
         self.oil_df['oil_14d_mean'] = self.oil_df['oil_price'].rolling(14, min_periods=1).mean()
 
 
-    def save_parquet (self, parquet_name='../data/parquets/oil_df.parquet'):
-        self.oil_df.to_parquet(parquet_name, index=False)
+    def save_parquet (self, parquet_path='../data/parquets/oil_df.parquet'):
+        self.oil_df.to_parquet(parquet_path, index=False)
+
+    def full_processing(self):
+        self.set_columns()
+        self.df_cleaning()
+        self.add_rolling_means()
 
     oil_df = None
 
-class StationProcessing:
+class PricesProcessing:
     def __init__(self, directory_prices_path, gpu=False):
         if not directory_prices_path:
             raise ValueError("Path for station.csv was not provided")
@@ -57,17 +61,15 @@ class StationProcessing:
         if gpu is False:
             for price_file in prices_list:
                 print(f"Processing {price_file}")
+                date_string = os.path.basename(price_file).replace("-prices.csv", "")
+                date = pd.to_datetime(date_string, yearfirst=True)
                 df = pd.read_csv(price_file, sep=',')
+                df['date'] = date
                 data_frames.append(df)
                 self.full_df = pd.concat(data_frames)
-        self.set_datetime()
-        self.set_datetime_sin()
-        #self.set_datetime_cos()
-        self.df_cleaning()
-        self.save_parquet()
 
     def set_datetime(self):
-        self.full_df['date'] = pd.to_datetime(['date'], yearfirst=True)
+        #self.full_df['date'] = pd.to_datetime(['date'], yearfirst=True)
         self.full_df['year'] = self.full_df['date'].dt.year
         self.full_df['month'] = self.full_df['date'].dt.month
         self.full_df['day'] = self.full_df['date'].dt.day
@@ -93,8 +95,14 @@ class StationProcessing:
         self.full_df['hour_cos'] = np.cos(2 * np.pi * self.full_df['hour'] / 24)
         self.full_df['weekday_cos'] = np.cos(2 * np.pi * self.full_df['weekday'] / 7)
 
-    def save_parquet (self):
-        self.full_df.to_parquet('../data/parquets//full_df.parquet', index=False)
+    def save_parquet (self, parquet_path='../data/parquets/full_df.parquet'):
+        self.full_df.to_parquet(parquet_path, index=False)
+
+    def full_processing(self):
+        self.set_datetime()
+        self.df_cleaning()
+        self.set_datetime_sin()
+        #self.set_datetime_cos()
 
     #TODO gpu is True
     #TODO 3,5,7 day avg, volatility, 1,3,7 day lag
@@ -106,7 +114,7 @@ class StationProcessing:
     # df['e5_lag_3'] = df['e5'].shift(3)
     # df['e5_lag_7'] = df['e5'].shift(7)
 
-def process_data_csv(oil: OilProcessing, stations: StationProcessing, save = True) -> pd.DataFrame:
+def process_data_csv(oil: OilProcessing, stations: PricesProcessing, save = True) -> pd.DataFrame:
     final_df = stations.full_df.merge(oil, how='left', on=["month", "day", "year"])
     if save:
         final_df.to_parquet('../data/parquets//final_df.parquet', index=False)
