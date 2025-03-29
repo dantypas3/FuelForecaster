@@ -109,18 +109,22 @@ class PricesProcessing:
     # df['e5_lag_3'] = df['e5'].shift(3)
     # df['e5_lag_7'] = df['e5'].shift(7)
 
-def final_process_csv(oil: OilProcessing, stations: PricesProcessing, store=True, path=paths.FINAL_PARQUET_PATH) -> pd.DataFrame:
-    final_df = stations.full_df.merge(oil.oil_df, how='left', on=["month", "day", "year"])
-    if store:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        final_df.to_parquet(path, index=False)
-    return final_df
+class DataPipeline:
 
-def final_process_parquets(oil_parquet = paths.OIL_PARQUET_PATH, prices_parquet =paths.PRICES_PARQUET_PATH,
-                           path=paths.FINAL_PARQUET_PATH, store=True) -> pd.DataFrame:
-    oil = pd.read_parquet(oil_parquet)
-    prices = pd.read_parquet(prices_parquet)
-    final_df = prices.merge(oil, how='left', on=["month", "day", "year"])
-    if store:
-        final_df.to_parquet(path, index=False)
-    return final_df
+    def __init__(self, oil_processor: OilProcessing, prices_processor: PricesProcessing):
+        self.oil_processor = oil_processor
+        self.prices_processor = prices_processor
+
+    def process_all(self, store=True, final_path=paths.FINAL_PARQUET_PATH) -> pd.DataFrame:
+        self.oil_processor.full_processing()
+        self.prices_processor.full_processing()
+        final_df = self.merge()
+        if store:
+            os.makedirs(os.path.dirname(final_path), exist_ok=True)
+            final_df.to_parquet(final_path, index=False)
+        return final_df
+
+    def merge(self) -> pd.DataFrame:
+        return self.prices_processor.full_df.merge(
+            self.oil_processor.oil_df, how='left', on=["month", "day", "year"]
+        )
