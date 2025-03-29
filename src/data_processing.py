@@ -72,13 +72,12 @@ class PricesProcessing:
     def df_cleaning(self):
         encoder = LabelEncoder()
         self.full_df['station_id_encoded'] = encoder.fit_transform(self.full_df['station_uuid'])
-        if 'date' in self.full_df.columns:
-            self.full_df.drop('date', axis=1, inplace=True)
+        #if 'date' in self.full_df.columns:
+        #    self.full_df.drop('date', axis=1, inplace=True)
         self.full_df = self.full_df.dropna()
         self.full_df = self.full_df[(self.full_df['diesel'] >= 0.5) & (self.full_df['diesel'] <= 3)]
         self.full_df = self.full_df[(self.full_df['e5'] >= 0.5) & (self.full_df['e5'] <= 3)]
         self.full_df = self.full_df[(self.full_df['e10'] >= 0.5) & (self.full_df['e10'] <= 3)]
-
 
     def set_datetime_sin(self):
         self.full_df['hour_sin'] = np.sin(2 * np.pi * self.full_df['hour'] / 24)
@@ -91,12 +90,12 @@ class PricesProcessing:
     def save_parquet (self, parquet_path=paths.PRICES_PARQUET_PATH):
         self.full_df.to_parquet(parquet_path, index=False)
 
-    def full_processing(self, path=paths.PRICES_PARQUET_PATH, store=True):
+    def full_processing(self, path=paths.PRICES_PARQUET_PATH, store_parquet=True):
         self.set_columns()
         self.df_cleaning()
         self.set_datetime_sin()
         self.set_datetime_cos()
-        if store:
+        if store_parquet:
             self.save_parquet(parquet_path=path)
 
     #TODO gpu is True

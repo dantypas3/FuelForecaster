@@ -1,27 +1,29 @@
 #model_training.py
-import data_processing
 import pandas as pd
+import data_processing as dp
 from xgboost import XGBRegressor
 from sklearn.metrics import mean_squared_error
-#import cudf
+from utils import paths
 import time
 import joblib
+try:
+    import cudf
+    GPU_ENABLED = True
+except ImportError:
+    GPU_ENABLED = False
 
-def train_model(parquet_path = '../data/parquets//full_df.parquet', data_proc="no"):
-    if data_proc == "yes":
+def train_model(parquet_path = paths.FINAL_PARQUET_PATH, data_proc=True):
+
+    if data_proc:
         print("Processing Data")
-        full_df = data_processing.process_data()
+        oil = dp.OilProcessing().full_processing(store_parquet=False)
+        prices = dp.PricesProcessing(gpu = GPU_ENABLED).full_processing(store_parquet=False)
+        full_df = dp.DataPipeline(oil, prices).process_all()
     else:
         full_df = pd.read_parquet(parquet_path)
 
-    #Split train and test sets
-
-    train_df = full_df
-
-    print(len(train_df))
-
-    #Convert pandas df to cudf for faster gpu training. Deactivate to avoid training with gpu
-    #train_df = cudf.from_pandas(train_df)
+    if GPU_ENABLED:
+        full_df = cudf.from_pandas(full_df)
 
     #Choose significant columns for training
     feature_cols = ['hour_sin', 'hour_cos', 'station_id_encoded', 'e5_7d_avg', 'oil_price', 'oil_7d_avg', 'e5_volatility',
@@ -29,14 +31,12 @@ def train_model(parquet_path = '../data/parquets//full_df.parquet', data_proc="n
     #set target column
     target_cols = ['e5']
 
-    print("Splitting Dataframe...")
-    train_df = full_df[(full_df['month'] <= 2) & (full_df['day'] <= 20)]
-    print(f"train df {len(train_df)}")
-    test_df = full_df[((full_df['month'] == 2) & (full_df['day'] > 20)) | (full_df['month'] == 3)]
-    print(f"test df {len(test_df)}")
+    max_date = full_df['date'].max()
+    test_start = max_date - pd.Timedelta(days=10)
 
-    train_df = cudf.from_pandas(train_df)
-    test_df = cudf.from_pandas(test_df)
+    print("Splitting Dataframe...")
+    train_df = full_df[full_df['date'] < test_start]
+    test_df = full_df[full_df['date'] >= test_start]
 
     #Create train and test dataframes
     print("Creating train and test dataframes...")
@@ -46,9 +46,7 @@ def train_model(parquet_path = '../data/parquets//full_df.parquet', data_proc="n
     batch_size = 2000000            #Adapt batch_size according to available Hardware
     num_batches = len(X_train) // batch_size + 1
     print(f"Number of batches: {num_batches}")
-
     first_batch = True
-
     xgb_model = XGBRegressor(
         n_estimators=500,
         learning_rate=0.01,
@@ -65,10 +63,6 @@ def train_model(parquet_path = '../data/parquets//full_df.parquet', data_proc="n
         verbosity = 2
     )
 
-    #Fitting the model
-    print("Fitting model... ")
-
-
     for i in range(num_batches):
         print(f"Training batch {i +1} / {num_batches}")
         start_model = time.time()
@@ -84,12 +78,10 @@ def train_model(parquet_path = '../data/parquets//full_df.parquet', data_proc="n
         end_model = time.time()
         print("Model training elapsed time: {:.2f} seconds".format(end_model - start_model))
 
-
     print("Evaluating model on test data...")
     y_pred = xgb_model.predict(X_test)
     mse = mean_squared_error(y_test.to_pandas(), y_pred)  # Convert cudf to pandas for sklearn
     print(f"Mean Squared Error on Test Data: {mse:.4f}")
-
 
     #Store the trained model
     print("Storing model in models/xgbr_trained.pkl")

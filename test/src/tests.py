@@ -54,7 +54,6 @@ class TestPricesProcessing(unittest.TestCase):
     def test_df_cleaning(self):
         self.processor.set_columns()
         self.processor.df_cleaning()
-        self.assertNotIn("date", self.processor.full_df.columns)
         self.assertIn("station_id_encoded", self.processor.full_df.columns)
         self.assertTrue((self.processor.full_df['diesel'] >= 0.5).all())
         self.assertTrue((self.processor.full_df['diesel'] <= 3).all())
