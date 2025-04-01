@@ -1,16 +1,18 @@
-name: FuelForecaster
+name: fuel-forecaster
 channels:
+  - conda-forge
   - defaults
-  - https://repo.anaconda.com/pkgs/main
-  - https://repo.anaconda.com/pkgs/r
 dependencies:
-  - joblib
-  - numpy
-  - pandas
   - python=3.12
+  - pandas
+  - numpy
   - scikit-learn
   - xgboost
-  - kagglehub
-  - ipywidgets==8.1.5
+  - joblib
   - matplotlib
-prefix: /opt/anaconda3/envs/FuelForecaster
+  - kagglehub
+  - ipywidgets=8.1.5
+  - pip
+  - pip:
+      - fastparquet
+      - yfinance

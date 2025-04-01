@@ -43,13 +43,11 @@ class PricesProcessing:
 
     def __init__(self, gpu=False):
         if not os.path.exists(paths.PRICES_DIR):
-            raise FileNotFoundError(f"Prices directory not found at {paths.test_data_path('prices')}")
-            #Commented out for testing.
-            # raise FileNotFoundError(f"Price files were not found in: {paths.PRICES_DIR}")
+            raise FileNotFoundError(f"Price files were not found in: {paths.PRICES_DIR}")
 
-        prices_list = glob.glob(os.path.join(paths.test_data_path('prices'), '*', '*-prices.csv'))
-        #prices_list = glob.glob(os.path.join(paths.PRICES_DIR, '*', '*-prices.csv'))
+        prices_list = glob.glob(os.path.join(paths.PRICES_DIR, '*', '*-prices.csv'))
         data_frames = []
+        self.full_df = pd.DataFrame()
 
         if not gpu:
             for price_file in prices_list:
@@ -59,7 +57,7 @@ class PricesProcessing:
                 df = pd.read_csv(price_file, sep=',')
                 df['date'] = date
                 data_frames.append(df)
-                self.full_df = pd.concat(data_frames)
+            self.full_df = pd.concat(data_frames)
 
     def set_columns(self):
         #self.full_df['date'] = pd.to_datetime(['date'], yearfirst=True)

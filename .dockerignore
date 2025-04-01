@@ -4,6 +4,6 @@ __pycache__/
 *.pyd
 *.ipynb
 
-data/
-parquets/
+#data/
+#parquets/
 models/

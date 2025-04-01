@@ -17,8 +17,10 @@ except ImportError:
 def load_full_data(parquet_path=paths.FINAL_PARQUET_PATH, process_data=True):
     if process_data:
         print("Processing Data")
-        oil = dp.OilProcessing().full_processing(store_parquet=False)
-        prices = dp.PricesProcessing(gpu=GPU_ENABLED).full_processing(store_parquet=False)
+        oil = dp.OilProcessing()E
+        oil.full_processing(store_parquet=False)
+        prices = dp.PricesProcessing(gpu=GPU_ENABLED)
+        prices.full_processing(store_parquet=False)
         full_df = dp.DataPipeline(oil, prices).process_all()
     else:
         full_df = pd.read_parquet(parquet_path)

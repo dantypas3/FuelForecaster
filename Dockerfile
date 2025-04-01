@@ -1,24 +1,21 @@
-# Use a Miniconda base image
 FROM continuumio/miniconda3
 
-# Set working directory inside the container
 WORKDIR /app
 
-# Copy environment.yml first to leverage Docker build caching
+# Copy environment.yml into container
 COPY environment.yml .
 
-# Create the Conda environment
-RUN conda env create -f environment.yml
+# Create conda environment
+RUN conda config --set channel_priority strict && \
+    conda env create -f environment.yml
 
-# Activate the conda environment
-# Make sure it is activated for all RUN, CMD, etc.
-ENV PATH /opt/conda/envs/fuel-forecaster/bin:$PATH
+# Set env path to make conda environment default
+ENV PATH=/opt/conda/envs/fuel-forecaster/bin:$PATH
+ENV PYTHONPATH=/app
 
-# Copy the rest of your code into the container
+# Copy the rest of your code
 COPY . .
 
-# (Optional) Make your main script executable
 RUN chmod +x src/main.py
 
-# Run your main script using the environment
 CMD ["python", "src/main.py", "--process-data"]
