@@ -18,9 +18,6 @@ class OilProcessing:
         self.oil_df = pd.read_csv(paths.OIL_CSV_PATH)
 
     def set_columns(self):
-        print("Columns in oil_df:", self.oil_df.columns.tolist())
-        print("CSV path used:", paths.OIL_CSV_PATH)
-        print("Head of the CSV:\n", self.oil_df.head())
         self.oil_df['Date'] = pd.to_datetime(self.oil_df['Date'], yearfirst=True)
         self.oil_df['month'] = self.oil_df['Date'].dt.month.astype(np.float32)
         self.oil_df['day'] = self.oil_df['Date'].dt.day.astype(np.float32)

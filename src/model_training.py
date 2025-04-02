@@ -95,7 +95,6 @@ def train_model_batches(X_train, y_train, feature_cols, batch_size=2000000):
     for i in range(num_batches):
         print(f"Training batch {i + 1} / {num_batches}")
         start_time = time.time()
-        # Using iloc to slice batches from the training train_data.
         batch_slice = slice(i * batch_size, (i + 1) * batch_size)
         X_batch = X_train.iloc[batch_slice]
         y_batch = y_train.iloc[batch_slice]
