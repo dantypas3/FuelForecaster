@@ -16,7 +16,8 @@ class DataFetcher:
         data = yf.download(
             self.ticker,
             start=start_date.strftime("%Y-%m-%d"),
-            end=end_date.strftime("%Y-%m-%d")
+            end=end_date.strftime("%Y-%m-%d"),
+            auto_adjust=True
         )
         data.reset_index(inplace=True)
         data = data.iloc[1:].copy()

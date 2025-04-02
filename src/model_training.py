@@ -113,7 +113,10 @@ def train_model_batches(X_train, y_train, feature_cols, batch_size=2000000):
 def evaluate_model(model, X_test, y_test):
     print("Evaluating model on test train_data...")
     y_pred = model.predict(X_test)
-    mse = mean_squared_error(y_test.to_pandas(), y_pred)  # convert cudf to pandas if necessary
+    if GPU_ENABLED:
+        mse = mean_squared_error(y_test.to_pandas(), y_pred)  # convert cudf to pandas if necessary
+    else:
+        mse = mean_squared_error(y_test, y_pred)
     print(f"Mean Squared Error on Test Data: {mse:.4f}")
     return mse
 
