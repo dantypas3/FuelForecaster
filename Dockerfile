@@ -18,7 +18,5 @@ COPY . .
 
 RUN chmod +x src/main.py
 
-RUN mkdir -p /app/models
-
 
 CMD ["python", "src/main.py", "--process-data"]
