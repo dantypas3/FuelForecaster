@@ -18,4 +18,5 @@ COPY . .
 
 RUN chmod +x src/main.py
 
+
 CMD ["python", "src/main.py", "--process-data"]

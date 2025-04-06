@@ -11,23 +11,27 @@ try:
     import cudf
     GPU_ENABLED = True
 except ImportError:
+    import types
+    cudf = types.SimpleNamespace(from_pandas=lambda x: x)
     GPU_ENABLED = False
 
 
 def load_full_data(parquet_path=paths.FINAL_PARQUET_PATH, process_data=True):
     if process_data:
-        print("Processing Data")
-        oil = dp.OilProcessing()E
-        oil.full_processing(store_parquet=False)
-        prices = dp.PricesProcessing(gpu=GPU_ENABLED)
-        prices.full_processing(store_parquet=False)
-        full_df = dp.DataPipeline(oil, prices).process_all()
+        if process_data:
+            print("Processing Data")
+            oil = dp.OilProcessing()
+            prices = dp.PricesProcessing(gpu=GPU_ENABLED)
+            full_df = dp.DataPipeline(oil, prices).process_all()
     else:
         full_df = pd.read_parquet(parquet_path)
 
     # Convert to cudf if GPU is available
     if GPU_ENABLED:
+        print("GPU Enabled")
         full_df = cudf.from_pandas(full_df)
+    else:
+        print("GPU Disabled")
     return full_df
 
 
@@ -54,6 +58,7 @@ def train_model_batches(X_train, y_train, feature_cols, batch_size=2000000):
 
     if GPU_ENABLED:
     # Initialize XGBRegressor with hyperparameters.
+        print("Training with GPU")
         model = XGBRegressor(
             n_estimators=500,
             learning_rate=0.01,
@@ -70,6 +75,7 @@ def train_model_batches(X_train, y_train, feature_cols, batch_size=2000000):
             verbosity=2
         )
     else:
+        print("Training with CPU")
         model = XGBRegressor(
             n_estimators=500,
             learning_rate=0.01,
@@ -89,7 +95,6 @@ def train_model_batches(X_train, y_train, feature_cols, batch_size=2000000):
     for i in range(num_batches):
         print(f"Training batch {i + 1} / {num_batches}")
         start_time = time.time()
-        # Using iloc to slice batches from the training train_data.
         batch_slice = slice(i * batch_size, (i + 1) * batch_size)
         X_batch = X_train.iloc[batch_slice]
         y_batch = y_train.iloc[batch_slice]
@@ -107,7 +112,10 @@ def train_model_batches(X_train, y_train, feature_cols, batch_size=2000000):
 def evaluate_model(model, X_test, y_test):
     print("Evaluating model on test train_data...")
     y_pred = model.predict(X_test)
-    mse = mean_squared_error(y_test.to_pandas(), y_pred)  # convert cudf to pandas if necessary
+    if GPU_ENABLED:
+        mse = mean_squared_error(y_test.to_pandas(), y_pred)  # convert cudf to pandas if necessary
+    else:
+        mse = mean_squared_error(y_test, y_pred)
     print(f"Mean Squared Error on Test Data: {mse:.4f}")
     return mse
 
@@ -131,9 +139,8 @@ def run_training(data_proc=True):
     train_df, test_df = split_train_test(full_df)
 
     feature_cols = [
-        'hour_sin', 'hour_cos', 'station_id_encoded', 'e5_7d_avg', 
-        'oil_price', 'oil_7d_avg', 'e5_volatility', 'e5_lag_1', 
-        'e5_lag_3', 'e5_lag_7'
+        'hour_sin', 'hour_cos', 'station_id_encoded',
+        'oil_price'
     ]
     target_cols = ['e5']
 
@@ -141,18 +148,3 @@ def run_training(data_proc=True):
     trained_model = train_model_batches(X_train, y_train, feature_cols)
     evaluate_model(trained_model, X_test, y_test)
     save_trained_model(trained_model)
-
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        '--process-train_data',
-        action='store_true',
-        help='Process raw train_data instead of reading from parquet.'
-    )
-    args = parser.parse_args()
-
-    run_training(data_proc=args.process_data)
-
-if __name__ == '__main__':
-    main()

@@ -23,7 +23,7 @@ class OilProcessing:
         self.oil_df['day'] = self.oil_df['Date'].dt.day.astype(np.float32)
         self.oil_df['year'] = self.oil_df['Date'].dt.year.astype(np.float32)
         self.oil_df.rename(columns={'Close' : 'oil_price'}, inplace=True)
-        self.oil_df.drop(columns=['Volume', 'Open', 'High',  'Low', 'Date'], inplace=True)
+        self.oil_df.drop(columns=['Volume', 'Open', 'High',  'Low'], inplace=True)
 
     def add_rolling_means(self):
         self.oil_df['oil_3d_mean'] = self.oil_df['oil_price'].rolling(3, min_periods=1).mean().astype(np.float32)
