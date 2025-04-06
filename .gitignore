@@ -4,3 +4,6 @@ venv/
 .venv/
 .csv
 *.log
+*.pkl
+*.dump
+*.gz
