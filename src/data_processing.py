@@ -29,9 +29,9 @@ class OilProcessing:
         self.oil_df.drop(columns=['Volume', 'Open', 'High', 'Low'], inplace=True, errors='ignore')
 
     def add_rolling_means(self):
-        self.oil_df['oil_3d_mean'] = self.oil_df['oil_price'].rolling(3, min_periods=1).mean().round(3).astype(np.float32)
-        self.oil_df['oil_7d_mean'] = self.oil_df['oil_price'].rolling(7, min_periods=1).mean().round(3).astype(np.float32)
-        self.oil_df['oil_14d_mean'] = self.oil_df['oil_price'].rolling(14, min_periods=1).mean().round(3).astype(np.float32)
+        self.oil_df['oil_3d_mean'] = self.oil_df['oil_price'].rolling(3, min_periods=1).mean().astype(np.float32)
+        self.oil_df['oil_7d_mean'] = self.oil_df['oil_price'].rolling(7, min_periods=1).mean().astype(np.float32)
+        self.oil_df['oil_14d_mean'] = self.oil_df['oil_price'].rolling(14, min_periods=1).mean().astype(np.float32)
 
     def save_parquet(self, parquet_path=paths.OIL_PARQUET_PATH):
         self.oil_df.to_parquet(parquet_path, index=False)
@@ -67,9 +67,11 @@ class PricesProcessing:
             raise NotImplementedError("GPU mode is not implemented yet.")
 
     def set_columns(self):
+        #TODO brand to number
+
         self.full_df['date'] = pd.to_datetime(self.full_df['date'], yearfirst=True, utc=True)
         self.full_df['date'] = self.full_df['date'].dt.tz_localize(None)
-        self.full_df['date'] = self.full_df['date'].dt.floor('D')  # <-- THIS LINE FIXES THE MERGE
+        self.full_df['date'] = self.full_df['date'].dt.floor('D')
 
         self.full_df['month'] = self.full_df['date'].dt.month
         self.full_df['day'] = self.full_df['date'].dt.day
@@ -78,6 +80,10 @@ class PricesProcessing:
 
         self.full_df['hour_sin'] = np.sin(2 * np.pi * self.full_df['hour'] / 24)
         self.full_df['weekday_sin'] = np.sin(2 * np.pi * self.full_df['weekday'] / 7)
+
+        price_columns = ['e5', 'e10', 'diesel']
+        for col in price_columns:
+            self.full_df[col] = self.full_df[col].where(self.full_df[col] >= 0).astype(float) / 1000
 
         self.full_df.sort_values(by='date').reset_index(drop=True, inplace=True)
         self.full_df.drop(columns=['change', 'public_holiday_identifier', 'weekday', 'hour', 'lat', 'lng'],
