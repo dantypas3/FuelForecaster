@@ -21,7 +21,8 @@ def load_full_data(parquet_path=paths.FINAL_PARQUET_PATH, process_data=True):
         if process_data:
             print("Processing Data")
             oil = dp.OilProcessing()
-            prices = dp.PricesProcessing(gpu=GPU_ENABLED)
+            #prices = dp.PricesProcessing(gpu=GPU_ENABLED)
+            prices = dp.PricesProcessing()
             full_df = dp.DataPipeline(oil, prices).process_all()
     else:
         full_df = pd.read_parquet(parquet_path)
@@ -52,7 +53,7 @@ def prepare_features(train_df, test_df, feature_cols, target_cols):
     return X_train, y_train, X_test, y_test
 
 
-def train_model_batches(X_train, y_train, feature_cols, batch_size=2000000):
+def train_model_batches(X_train, y_train, feature_cols, batch_size=1000000):
     num_batches = len(X_train) // batch_size + 1
     print(f"Number of batches: {num_batches}")
 

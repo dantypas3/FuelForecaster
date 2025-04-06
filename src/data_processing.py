@@ -1,18 +1,16 @@
 #data_processing.py
 import pandas as pd
-import glob
 import numpy as np
 import os
 from src import data_fetch as dfe
 from src.utils import paths
-from sklearn.preprocessing import LabelEncoder
 
 class OilProcessing:
 
-    def __init__(self, fetch_if_missing=True):
+    def __init__(self, fetch=True):
         if not os.path.exists(paths.OIL_CSV_PATH):
-            if fetch_if_missing:
-                dfe.DataFetcher().fetch_brent()
+            if fetch:
+                dfe.BrentFetcher().fetch_brent()
             else:
                 raise FileNotFoundError(f"Oil CSV not found at {paths.OIL_CSV_PATH}")
         self.oil_df = pd.read_csv(paths.OIL_CSV_PATH)
@@ -41,58 +39,51 @@ class OilProcessing:
 
 class PricesProcessing:
 
-    def __init__(self, gpu=False):
-        if not os.path.exists(paths.PRICES_DIR):
-            raise FileNotFoundError(f"Price files were not found in: {paths.PRICES_DIR}")
-
-        prices_list = glob.glob(os.path.join(paths.PRICES_DIR, '*', '*-prices.csv'))
-        data_frames = []
-        self.full_df = pd.DataFrame()
+    def __init__(self, gpu=False, fetch=True):
+        if not (os.path.exists(paths.STATION_PRICES_CSV)) or not (os.path.exists(paths.STATION_DATA_CSV)):
+            if fetch:
+                dfe.StationFetcher().fetch_all()
+            else:
+                raise FileNotFoundError("Required station CSVs are missing.")
 
         if not gpu:
-            for price_file in prices_list:
-                print(f"Processing {price_file}")
-                date_string = os.path.basename(price_file).replace("-prices.csv", "")
-                date = pd.to_datetime(date_string, yearfirst=True)
-                df = pd.read_csv(price_file, sep=',')
-                df['date'] = date
-                data_frames.append(df)
-            self.full_df = pd.concat(data_frames)
+            station_prices = pd.read_csv(paths.STATION_PRICES_CSV, sep="\t")
+            station_data = pd.read_csv(paths.STATION_DATA_CSV, sep="\t")
+
+            station_data.drop(columns=[
+                'version', 'version_time', 'name', 'street', 'house_number', 'place', 'price_in_import',
+                'price_changed', 'open_ts', 'ot_json', 'station_in_import', 'first_active'
+            ], inplace=True, errors='ignore')  # Just in case any column is missing
+
+            self.full_df = pd.merge(station_prices, station_data, how='left', left_on='uuid', right_on='id')
+        else:
+            raise NotImplementedError("GPU mode is not implemented yet.")
 
     def set_columns(self):
-        #self.full_df['date'] = pd.to_datetime(['date'], yearfirst=True)
+        self.full_df['date'] = pd.to_datetime(self.full_df['date'], yearfirst=True, utc=True)
         self.full_df['year'] = self.full_df['date'].dt.year
         self.full_df['month'] = self.full_df['date'].dt.month
         self.full_df['day'] = self.full_df['date'].dt.day
         self.full_df['weekday'] = self.full_df['date'].dt.weekday
         self.full_df['hour'] = self.full_df['date'].dt.hour
-
-    def df_cleaning(self):
-        encoder = LabelEncoder()
-        self.full_df['station_id_encoded'] = encoder.fit_transform(self.full_df['station_uuid'])
-        #if 'date' in self.full_df.columns:
-        #    self.full_df.drop('date', axis=1, inplace=True)
-        self.full_df = self.full_df.dropna()
-        self.full_df = self.full_df[(self.full_df['diesel'] >= 0.5) & (self.full_df['diesel'] <= 3)]
-        self.full_df = self.full_df[(self.full_df['e5'] >= 0.5) & (self.full_df['e5'] <= 3)]
-        self.full_df = self.full_df[(self.full_df['e10'] >= 0.5) & (self.full_df['e10'] <= 3)]
-
-    def set_datetime_sin(self):
+        self.full_df.drop(columns=['date'], inplace=True)
         self.full_df['hour_sin'] = np.sin(2 * np.pi * self.full_df['hour'] / 24)
         self.full_df['weekday_sin'] = np.sin(2 * np.pi * self.full_df['weekday'] / 7)
-
-    def set_datetime_cos(self):
         self.full_df['hour_cos'] = np.cos(2 * np.pi * self.full_df['hour'] / 24)
         self.full_df['weekday_cos'] = np.cos(2 * np.pi * self.full_df['weekday'] / 7)
+
+
+        #TODO check
+        # self.full_df = self.full_df.dropna()
+        # self.full_df = self.full_df[(self.full_df['diesel'] >= 0.5) & (self.full_df['diesel'] <= 3)]
+        # self.full_df = self.full_df[(self.full_df['e5'] >= 0.5) & (self.full_df['e5'] <= 3)]
+        # self.full_df = self.full_df[(self.full_df['e10'] >= 0.5) & (self.full_df['e10'] <= 3)]
 
     def save_parquet (self, parquet_path=paths.PRICES_PARQUET_PATH):
         self.full_df.to_parquet(parquet_path, index=False)
 
     def full_processing(self, path=paths.PRICES_PARQUET_PATH, store_parquet=True):
         self.set_columns()
-        self.df_cleaning()
-        self.set_datetime_sin()
-        self.set_datetime_cos()
         if store_parquet:
             self.save_parquet(parquet_path=path)
 
