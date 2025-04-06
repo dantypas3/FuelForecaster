@@ -9,7 +9,8 @@ from src.model_training import run_training
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--process-data', action='store_true')
+    parser.add_argument('--fetch', action='store_true', help='Enable to fetch the latest price data')
+    parser.add_argument('--process-data', action='store_true', help='Enable if final_df.parquet does not exist')
     args = parser.parse_args()
     run_training(data_proc=args.process_data)
 
