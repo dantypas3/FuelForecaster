@@ -2,4 +2,8 @@
 __pycache__/
 venv/
 .venv/
+.csv
 *.log
+*.pkl
+*.dump
+*.gz
