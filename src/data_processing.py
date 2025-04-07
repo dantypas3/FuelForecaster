@@ -78,17 +78,6 @@ class PricesProcessing:
         self.full_df['weekday'] = self.full_df['date'].dt.weekday
         self.full_df['hour'] = self.full_df['date'].dt.hour
 
-    def df_cleaning(self):
-        encoder = LabelEncoder()
-        self.full_df['station_id_encoded'] = encoder.fit_transform(self.full_df['station_uuid'])
-        #if 'date' in self.full_df.columns:
-        #    self.full_df.drop('date', axis=1, inplace=True)
-        self.full_df = self.full_df.dropna()
-        self.full_df = self.full_df[(self.full_df['diesel'] >= 0.5) & (self.full_df['diesel'] <= 3)]
-        self.full_df = self.full_df[(self.full_df['e5'] >= 0.5) & (self.full_df['e5'] <= 3)]
-        self.full_df = self.full_df[(self.full_df['e10'] >= 0.5) & (self.full_df['e10'] <= 3)]
-
-    def set_datetime_sin(self):
         self.full_df['hour_sin'] = np.sin(2 * np.pi * self.full_df['hour'] / 24)
         self.full_df['weekday_sin'] = np.sin(2 * np.pi * self.full_df['weekday'] / 7)
 
@@ -100,6 +89,8 @@ class PricesProcessing:
         self.full_df.drop(columns=['change', 'public_holiday_identifier', 'weekday', 'hour', 'lat', 'lng'],
                           inplace=True, errors='ignore')
         self.full_df.dropna(inplace=True)
+
+    #TODO df_cleaning method
 
     def save_parquet(self, parquet_path=paths.PRICES_PARQUET_PATH):
         self.full_df.to_parquet(parquet_path, index=False)
