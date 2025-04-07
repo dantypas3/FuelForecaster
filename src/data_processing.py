@@ -150,9 +150,6 @@ class PricesProcessing:
         # self.full_df = self.full_df[(self.full_df['e5'] >= 0.5) & (self.full_df['e5'] <= 3)]
         # self.full_df = self.full_df[(self.full_df['e10'] >= 0.5) & (self.full_df['e10'] <= 3)]
 
-    def save_parquet (self, parquet_path=paths.PRICES_PARQUET_PATH):
-        self.full_df.to_parquet(parquet_path, index=False)
-
     def full_processing(self, path=paths.PRICES_PARQUET_PATH, store_parquet=True):
         self.set_columns()
         if store_parquet:
