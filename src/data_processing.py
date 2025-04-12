@@ -1,3 +1,4 @@
+#data_processing.py
 import pandas as pd
 import numpy as np
 import os
@@ -41,7 +42,6 @@ class OilProcessing:
         self.add_rolling_means()
         if store_parquet:
             self.save_parquet(parquet_path=path)
-
 
 class PricesProcessing:
     def __init__(self, gpu=False, fetch=True):
@@ -91,8 +91,65 @@ class PricesProcessing:
                           inplace=True, errors='ignore')
         self.full_df.dropna(inplace=True)
 
+    #TODO df_cleaning method
+
     def save_parquet(self, parquet_path=paths.PRICES_PARQUET_PATH):
         self.full_df.to_parquet(parquet_path, index=False)
+
+    def compute_averages(self):
+
+        diesel_mean = self.full_df[self.full_df['diesel'] > 0].groupby(['station_uuid', 'date'])[
+            'diesel'].mean().round(3).reset_index()
+        diesel_mean.rename(columns={'diesel': 'diesel_daily_avg'}, inplace=True)
+        self.full_df = self.full_df.merge(diesel_mean, how='left', on=['station_uuid', 'date'])
+
+        e5_mean = self.full_df[self.full_df['e5'] > 0].groupby(['station_uuid', 'date'])['e5'].mean().round(
+            3).reset_index()
+        e5_mean.rename(columns={'e5': 'e5_daily_avg'}, inplace=True)
+        self.full_df = self.full_df.merge(e5_mean, how='left', on=['station_uuid', 'date'])
+
+        e10_mean = self.full_df[self.full_df['e10'] > 0].groupby(['station_uuid', 'date'])['e10'].mean().round(
+            3).reset_index()
+        e10_mean.rename(columns={'e10': 'e10_daily_avg'}, inplace=True)
+        self.full_df = self.full_df.merge(e10_mean, how='left', on=['station_uuid', 'date'])
+
+        self.full_df = self.full_df.sort_values(['station_uuid', 'date'])
+
+        daily_avg = (self.full_df[['station_uuid', 'date', 'diesel_daily_avg', 'e5_daily_avg', 'e10_daily_avg']]
+                     .drop_duplicates())
+        daily_avg = daily_avg.sort_values(['station_uuid', 'date'])
+
+        daily_avg['diesel_three_day_avg'] = (daily_avg.groupby('station_uuid')['diesel_daily_avg']
+                                             .rolling(window=3, min_periods=1).mean().reset_index(level=0, drop=True)
+                                             .round(3))
+
+        daily_avg['diesel_seven_day_avg'] = (daily_avg.groupby('station_uuid')['diesel_daily_avg']
+                                             .rolling(window=7, min_periods=1).mean().reset_index(level=0, drop=True)
+                                             .round(3))
+
+        daily_avg['e5_three_day_avg'] = (daily_avg.groupby('station_uuid')['e5_daily_avg']
+                                         .rolling(window=3, min_periods=1).mean().reset_index(level=0, drop=True)
+                                         .round(3))
+
+        daily_avg['e5_seven_day_avg'] = (daily_avg.groupby('station_uuid')['e5_daily_avg']
+                                         .rolling(window=7, min_periods=1).mean().reset_index(level=0, drop=True)
+                                         .round(3))
+
+        daily_avg['e10_three_day_avg'] = (daily_avg.groupby('station_uuid')['e10_daily_avg']
+                                          .rolling(window=3, min_periods=1).mean().reset_index(level=0, drop=True)
+                                          .round(3))
+
+        daily_avg['e10_seven_day_avg'] = (daily_avg.groupby('station_uuid')['e10_daily_avg']
+                                          .rolling(window=7, min_periods=1).mean().reset_index(level=0, drop=True)
+                                          .round(3))
+
+        self.full_df = self.full_df.merge(daily_avg, on=['station_uuid', 'date'], how='left')
+
+        #TODO check
+        # self.full_df = self.full_df.dropna()
+        # self.full_df = self.full_df[(self.full_df['diesel'] >= 0.5) & (self.full_df['diesel'] <= 3)]
+        # self.full_df = self.full_df[(self.full_df['e5'] >= 0.5) & (self.full_df['e5'] <= 3)]
+        # self.full_df = self.full_df[(self.full_df['e10'] >= 0.5) & (self.full_df['e10'] <= 3)]
 
     def full_processing(self, path=paths.PRICES_PARQUET_PATH, store_parquet=True):
         self.set_columns()
@@ -107,15 +164,10 @@ class DataPipeline:
 
     def process_all(self, store=True, final_path=paths.FINAL_PARQUET_PATH) -> pd.DataFrame:
         self.oil_processor.full_processing()
-        print(self.oil_processor.oil_df.shape)
         self.prices_processor.full_processing()
-        print(self.prices_processor.full_df.shape)
-
         final_df = self.merge()
 
         final_df.drop(columns=['uuid'], inplace=True)
-        print(f"Final df {final_df.shape}")
-
         if store:
             os.makedirs(os.path.dirname(final_path), exist_ok=True)
             final_df.to_parquet(final_path, index=False)
