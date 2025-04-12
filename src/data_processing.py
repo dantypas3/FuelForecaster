@@ -61,13 +61,14 @@ class PricesProcessing:
             self.full_df = self.full_df.drop(columns=['id_y']).rename(columns={'id_x': 'id'})
             self.full_df['post_code'] = self.full_df['post_code'].replace('\\N', np.nan)
             self.full_df['post_code'] = self.full_df['post_code'].astype('float').astype(
-                'Int32')  # or .astype('int32') if you're sure there's no NaN left
+                'Int32')
 
         else:
             raise NotImplementedError("GPU mode is not implemented yet.")
 
     def set_columns(self):
         #TODO brand to number
+        #TODO drop duplicate months
 
         self.full_df['date'] = pd.to_datetime(self.full_df['date'], yearfirst=True, utc=True)
         self.full_df['date'] = self.full_df['date'].dt.tz_localize(None)
@@ -112,7 +113,6 @@ class DataPipeline:
 
         final_df = self.merge()
 
-        # Keep only rows where both uuid and oil_price are present
         final_df.drop(columns=['uuid'], inplace=True)
         print(f"Final df {final_df.shape}")
 
@@ -123,7 +123,6 @@ class DataPipeline:
         return final_df
 
     def merge(self) -> pd.DataFrame:
-        # Merge on full date for better alignment
         return self.prices_processor.full_df.merge(
             self.oil_processor.oil_df, how='left', on="date"
         )

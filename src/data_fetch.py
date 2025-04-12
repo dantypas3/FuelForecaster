@@ -10,11 +10,6 @@ from src.utils import paths
 
 
 def fix_timezone(date_str):
-    """
-    If the date string ends with a timezone offset like '+02' or '-05',
-    append '00' so it becomes '+0200' or '-0500'.
-    """
-    # Match a plus or minus sign followed by exactly 2 digits at the end of the string.
     if re.search(r'([+-]\d{2})$', date_str):
         return date_str + "00"
     return date_str
@@ -36,9 +31,7 @@ class BrentFetcher:
             auto_adjust=True
         )
         data.reset_index(inplace=True)
-        # Skip the first row if needed
         data = data.iloc[1:].copy()
-        # In case columns are multi-indexed, take the first level
         data.columns = data.columns.get_level_values(0)
 
         os.makedirs(os.path.dirname(self.output_path), exist_ok=True)
@@ -163,10 +156,8 @@ class StationFetcher:
 
 
 def main():
-    # Set get_dump=False if you already have the dump file locally.
-    sf = StationFetcher(get_dump=False)
+    sf = StationFetcher(get_dump=True)
     sf.create_prices_csv()
-
 
 if __name__ == '__main__':
     main()

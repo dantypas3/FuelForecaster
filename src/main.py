@@ -2,7 +2,6 @@ import argparse
 import os
 import sys
 
-# Add the project root to the Python path BEFORE importing anything from src
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from src.model_training import run_training

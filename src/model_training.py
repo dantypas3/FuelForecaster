@@ -47,8 +47,8 @@ def split_train_test(full_df):
     print(f"Test df length: {len(test_df)}")
 
     if len(train_df) == 0:
-        print("⚠️ No training data available. Skipping training.")
-        return train_df, test_df  # Return as-is, later code can skip training
+        print("No training data available. Skipping training.")
+        return train_df, test_df
 
     if GPU_ENABLED:
         train_df = cudf.from_pandas(train_df)
@@ -120,7 +120,7 @@ def run_training(fetch_data=False, data_proc=False):
     train_df, test_df = split_train_test(full_df)
 
     feature_cols = [
-        'hour_sin', 'id', 'weekday_sin',
+        'hour_sin', 'id', 'weekday_sin', 'month', 'day',
         'oil_price', 'oil_3d_mean', 'oil_7d_mean', 'post_code'
     ]
     target_cols = ['e5']
