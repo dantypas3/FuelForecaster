@@ -24,4 +24,3 @@ MODEL_PATH = model_path('xgbr_trained.pkl')
 TANKERKOENIG_DUMP_URL = "https://creativecommons.tankerkoenig.de/history/history.dump.gz"
 DUMP_GZ_FILENAME = data_path('dump', 'history.dump.gz')
 DUMP_OUTPUT_FILENAME = data_path('dump', 'history.dump')
-
