@@ -46,7 +46,7 @@ Our long-term goal is to launch a user-friendly application providing highly acc
 
 ## Evaluation & Accuracy Metrics
 
-The model's effectiveness will be continuously evaluated against real-world data to achieve and ensure the maintained accuracy target of 99.99% (± €0.01).
+The model's effectiveness will be continuously evaluated against real-world data to achieve maximal accuracy.
 
 ---
 
